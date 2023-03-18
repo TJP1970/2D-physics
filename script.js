@@ -1,6 +1,41 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+var drawingShape = false; // wether the user is currently drawing a shape to add
+var drawingVertices = []; // the vertices of the current drawing
+
+var mouse = [0, 0]; // current coordinates of the mouse
+
+// track current mouse coords on canvas
+function getMouseCords(event)
+{
+  var e = window.event;
+
+  var rect = canvas.getBoundingClientRect(); // gets info about the actual size of the element
+  var scaleX = canvas.width / rect.width; // finds the scale between the actual size of the canvas on screen and the number of pixels high e.g. it is 1920px tall in html but it is actually smaller as it has been scaled down by css 
+  var scaleY = canvas.height / rect.height;
+
+  mouse[0] = (e.clientX - rect.left) * scaleX;
+  mouse[1] = (e.clientY - rect.top) * scaleY;
+}
+
+// detect left mouse clicks
+canvas.addEventListener("click", (event) => 
+{
+  if (drawingShape)
+  {
+    drawingVertices.push(JSON.parse(JSON.stringify(mouse))); // adds new vertice to drawing
+    if (drawingVertices.length > 0)
+    {
+      // draws line between vertices as user is drawing them to make shape easier to visualise
+      ctx.moveTo(drawingVertices[drawingVertices.length-2][0], drawingVertices[drawingVertices.length-2][1]);
+      ctx.lineTo(drawingVertices[drawingVertices.length-1][0], drawingVertices[drawingVertices.length-1][1]);
+      ctx.stroke();
+    }
+  }
+});
+
+
 // performs a matrix multiplication on a coordinate for the purpose of transformations
 // point is in format [x, y]
 // matrix is in format (this example is for the identity matrix):
@@ -69,7 +104,7 @@ class Shape
   draw()
   {
     ctx.fillStyle = this.color;
-    ctx.strokeStyle = "red";
+    ctx.strokeStyle = this.color;
     ctx.beginPath()
     ctx.moveTo(this.vertices[0][0], this.vertices[0][1]); // move to first vertice
     // draws a line between each vertice, starts at 1 as starts drawing at first vertice
@@ -114,7 +149,28 @@ class Shape
   }
 }
 
+function drawShape()
+{
+  
+  if (!drawingShape)
+  {
+    drawingShape = true; // when this is true mouse click coords get added to an array to add vertices to drawing.
+    drawingVertices = [];
+    document.getElementById("drawShape").innerText = "Finish Shape";
+  }
+  else
+  {
+    drawingShape = false;
+    document.getElementById("drawShape").innerText = "Draw Shape";
+    color = prompt("What color would you like the shape to be"); // get user input on shape color
+    var myShape = new Shape(drawingVertices, 1, [0, 0], color);
+    myShape.draw();
+    drawingVertices = [];
+  }
+}
 
+  
+/*
 var rect = [[-1, -1], [-1, 1], [1, 1], [1, -1]];
 
 //rect = matrix_transform(rect, [[0.707, 0.707], [-0.707, 0.707]]);
@@ -128,4 +184,4 @@ ctx.strokeStyle = "black";
 ctx.moveTo(myShape.position[0], myShape.position[1]);
 ctx.lineTo(0, 0);
 ctx.stroke();
-
+*/

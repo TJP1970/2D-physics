@@ -9,7 +9,11 @@
 </head>
 
 <body>
-  <canvas id="game" width="1920" height="1080"> </canvas>
+  <canvas id="game" width="1920" height="1080" onmousemove="getMouseCords(event)"> </canvas>
+
+  <br>
+  <button id="playPause"> Play/Pause </button> 
+  <button id="drawShape" onclick="drawShape()"> Draw Shape </button> 
   
   <script src="script.js"></script>
 </body>
