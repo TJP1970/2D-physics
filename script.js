@@ -1,3 +1,5 @@
+const fps = 60; // the number of frames per second
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -5,6 +7,8 @@ var drawingShape = false; // wether the user is currently drawing a shape to add
 var drawingVertices = []; // the vertices of the current drawing
 
 var mouse = [0, 0]; // current coordinates of the mouse
+var shapes = []; // array of Shape objects holds all the shapes
+var paused = false;
 
 // track current mouse coords on canvas
 function getMouseCords(event)
@@ -34,6 +38,20 @@ canvas.addEventListener("click", (event) =>
     }
   }
 });
+
+function pause()
+{
+  if (paused)
+  {
+    document.getElementById("playPause").innerText = "Pause";
+    paused = false;
+  }
+  else
+  {
+    document.getElementById("playPause").innerText = "Play";
+    paused = true;
+  }
+}
 
 
 // performs a matrix multiplication on a coordinate for the purpose of transformations
@@ -157,19 +175,39 @@ function drawShape()
     drawingShape = true; // when this is true mouse click coords get added to an array to add vertices to drawing.
     drawingVertices = [];
     document.getElementById("drawShape").innerText = "Finish Shape";
+    paused = true; // pause game whilst drawing shape
   }
   else
   {
     drawingShape = false;
     document.getElementById("drawShape").innerText = "Draw Shape";
     color = prompt("What color would you like the shape to be"); // get user input on shape color
-    var myShape = new Shape(drawingVertices, 1, [0, 0], color);
-    myShape.draw();
+    shapes.push(new Shape(drawingVertices, 1, [0, 0], color)); 
     drawingVertices = [];
+    paused = false; // unpause game after the shape is drawn
   }
 }
 
-  
+// this function runs the fps variable times per second and draws each frame
+function update() 
+{
+  if (!paused)
+  {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    for (let i=0; i<shapes.length; i++)
+    {
+      shapes[i].draw();
+      shapes[i].translate([0.5, 0]);
+    }
+
+  }
+  setTimeout(update, 1000/fps);
+}
+
+setTimeout(update, 1000/fps);
+
+
 /*
 var rect = [[-1, -1], [-1, 1], [1, 1], [1, -1]];
 
@@ -185,3 +223,6 @@ ctx.moveTo(myShape.position[0], myShape.position[1]);
 ctx.lineTo(0, 0);
 ctx.stroke();
 */
+
+
+////////// need to add function to work out the center of a shape for when shapes get drawn
