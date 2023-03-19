@@ -2,6 +2,7 @@ const fps = 60; // the number of frames per second
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+ctx.lineWidth = 3;
 
 var drawingShape = false; // wether the user is currently drawing a shape to add
 var drawingVertices = []; // the vertices of the current drawing
@@ -130,10 +131,10 @@ class Shape
   // note: in this case the center of the shape is off center
   // position is the coordinates for the center of the shape as an array e.g. [1, 2]
   // size is the multiplier applied to the vertices which controls the size of the shape
-  constructor(vertices, size, position, color)
+  constructor(vertices, color)
   {
-    this.vertices = vertices_translate(matrix_transform(vertices, [[size, 0], [0, size]]), position); // enlarges the shape by the size variable then adjusts the position of the shape vertices based on the position
-    this.position = position;
+    this.vertices = vertices; // enlarges the shape by the size variable then adjusts the position of the shape vertices based on the position
+    this.position = this.center(); // calculates the position of the center based on the coordinates of all the vertices
     this.color = color;
   }
 
@@ -184,10 +185,44 @@ class Shape
     this.position = vertices_translate(matrix_transform(vertices_translate([this.position], matrix_multiply(center, [[-1, 0], [0, -1]])), matrix), center)[0]; // doing the same transformation on the center of the shape
   }
 
-  // calculates the center of mass of the shape
-  calc_center()
+  // calculates the center of mass of the shape by working out an estimate for the average x and y coordinates of all points inside the shape
+  center()
   {
-    
+    var interval = 10; // the spacing between points the lower it is the more accurate the calculation is but the longer it takes
+    var points = 0; // the number of points that are inside
+    var pointsTotal = [0, 0]; // the sum of all points that are inside (used with points to calculate an average)
+
+    var minX = this.vertices[0][0]; // the lowest value X reaches
+    var maxX = this.vertices[0][0]; // the highest value X reaches
+    var minY = this.vertices[0][1];
+    var maxY = this.vertices[0][1];
+
+    // finding the maximum and minimum values for x and y
+    for (let i=0; i<this.vertices.length; i++)
+    {
+      var vertice = this.vertices[i];
+      
+      if (vertice[0] < minX) {minX = vertice[0];}
+      if (vertice[0] > maxX) {maxX = vertice[0];}
+      if (vertice[1] < minY) {minY = vertice[1];}
+      if (vertice[1] > maxY) {maxY = vertice[1];}
+    }
+
+    // working out the total of the x and y coordinates of points inside the shape
+    for (let x=minX; x<maxX; x+=interval)
+    {
+      for (let y=minY; y<maxY; y+=interval)
+      {
+         if (this.inside([x, y]))
+         {
+           points++;
+           pointsTotal[0] += x;
+           pointsTotal[1] += y;
+         }
+      }
+    }
+
+    return [pointsTotal[0]/points, pointsTotal[1]/points]; // finding the average x and y coordinates of all points inside shape
   }
 
   // returns true if point (format: [x, y]) is inside the shape
@@ -221,6 +256,8 @@ class Shape
   }
 }
 
+
+// run when user clicks draw shape button, allows the user to draw out a shape and then click again to add it to the game
 function drawShape()
 {
   
@@ -236,7 +273,7 @@ function drawShape()
     drawingShape = false;
     document.getElementById("drawShape").innerText = "Draw Shape";
     color = prompt("What color would you like the shape to be"); // get user input on shape color
-    shapes.push(new Shape(drawingVertices, 1, [0, 0], color)); 
+    shapes.push(new Shape(drawingVertices, color)); 
     drawingVertices = [];
     paused = false; // unpause game after the shape is drawn
   }
@@ -252,13 +289,17 @@ function update()
     for (let i=0; i<shapes.length; i++)
     {
       shapes[i].draw();
-      shapes[i].translate([0.5, 0]);
+      center = shapes[i].position;
+
+      ctx.beginPath();
+      ctx.strokeStyle = "black";
+      ctx.moveTo(center[0], center[1]);
+      ctx.lineTo(0, 0);
+      ctx.stroke();
+      //shapes[i].translate([0.5, 0]);
     }
 
-    if (typeof shapes[0] !== "undefined")
-    {
-      console.log(shapes[0].inside([mouse[0], mouse[1]]));
-    }
+    ////////////
 
   }
   setTimeout(update, 1000/fps);
@@ -283,5 +324,3 @@ ctx.lineTo(0, 0);
 ctx.stroke();
 */
 
-
-////////// need to add function to work out the center of a shape for when shapes get drawn
