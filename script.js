@@ -149,6 +149,8 @@ function intersects(line1, line2)
 class Shape
 {
   velocity = [0, 0]; // the velocity of the shape as a vector
+  followingMouse = false; // used to know if the shape should be following mouse
+  
   // vertices is an array of each vertice coordinate relative to the center of the shape e.g. for a triangle its [[0, 0], [0, 1], [1, 0]]
   // note: the coordinates are local/relative to the shape
   // note: in this case the center of the shape is off center
@@ -337,7 +339,6 @@ function acceleration(mass, force)
 
 var lastMouse = [0, 0]; // stores the mouse position the previous frame to work out mouse velocity
 var lastMouseDown = false; // stores wether the mouse was down last frame (used to detect when mouse is let go of or pressed inside game loop)
-var lastMouseVelocities = [[0, 0], [0, 0], [0, 0]]; // stores mouse velocities for the last 3 frames so an average can be calculated for smoothing when dragging shapes
 
 // this function runs the fps variable times per second and draws each frame
 // this is the game loop
@@ -346,15 +347,9 @@ function update()
     
   if (!paused)
   {
-    var averageMouseVelocity = [0, 0];
-    // calculating the average mouse velocity vector for the last phew frames
-    for (let i=0; i<lastMouseVelocities.length; i++)
-    {
-      averageMouseVelocity = vector_add(averageMouseVelocity, lastMouseVelocities[i]);
-    }
-    averageMouseVelocity = [averageMouseVelocity[0]/lastMouseVelocities.length, averageMouseVelocity[1]/lastMouseVelocities.length];
-
-    
+    var mouseMovement = vector_sub(mouse, lastMouse); // calculates the displacement of the mouse since last frame
+    var time = 1/fps; // working out how many seconds have passed since the last frame
+    var mouseVelocity = [(mouseMovement[0]/time)/metre, (mouseMovement[1]/time)/metre]; // current mouse velocity vector
 
     
     ctx.clearRect(0, 0, canvas.width, canvas.height); // clear the canvas for the next frame
@@ -368,31 +363,51 @@ function update()
   
         var shapeVelocityChange = [shapeAcc[0]/fps, shapeAcc[1]/fps]; // accelleration adjusted for fps
         shapes[i].velocity = vector_add(shapes[i].velocity, shapeVelocityChange);
-        
+      }
+
+      // if the shape has just been clicked on it should follow the mouse
+      if (mouseDown & !lastMouseDown & shapes[i].inside(mouse))
+      {
+        shapes[i].followingMouse = true;
+      }
+
+      // if following mouse but immovable move it anyway
+      if (shapes[i].followingMouse & !shapes[i].moveable)
+      {
+        shapes[i].translate([shapes[i].velocity[0]/fps*metre, shapes[i].velocity[1]/fps*metre]);
+      }
+      
+      // if mouse button up and following mouse stop following mouse
+      if (shapes[i].followingMouse & !mouseDown & lastMouseDown)
+      {
+        shapes[i].followingMouse = false;
+
+        // if moveable slow shape down by multiplier so it doesnt fly too far, if its immovable set its velocity to [0, 0]
+        if (shapes[i].moveable)
+        {
+          shapes[i].velocity = [shapes[i].velocity[0]*mouseDragMultiplier, shapes[i].velocity[1]*mouseDragMultiplier];
+        }
+        else
+        {
+          shapes[i].velocity = [0, 0];
+        }
+      }
+
+      // if should be following mouse make shape follow by changing its velocity to that of the mouse
+      if (shapes[i].followingMouse)
+      {
+        shapes[i].velocity = mouseVelocity;
+      }
+
+      // if the object is moveable move it according to its velocity
+      if (shapes[i].moveable)
+      {
         shapes[i].translate([shapes[i].velocity[0]/fps*metre, shapes[i].velocity[1]/fps*metre]); // translating the shape by its velocity taking into account fps and metre (how many pixels equates to 1 meter) so it moves the right distance per second
       }
       
-      if (mouseDown & shapes[i].inside(mouse))
-      {
-        shapes[i].velocity = averageMouseVelocity;
-      }
-
-      // if mouse up whilst mouse is over shape slow shape down by multiplier so it doesn't fly off at same speed as the mouse
-      if (!mouseDown & lastMouseDown & shapes[i].inside(mouse))
-      {
-        shapes[i].velocity = [shapes[i].velocity[0]*mouseDragMultiplier, shapes[i].velocity[1]*mouseDragMultiplier];
-      }
-      
-      shapes[i].draw();
+      shapes[i].draw(); // draw the shape onto the canvas
     }
   }
-
-  var mouseMovement = vector_sub(mouse, lastMouse); // calculates the displacement of the mouse since last frame
-  var time = 1/fps; // working out how many seconds have passed since the last frame
-  var mouseVelocity = [(mouseMovement[0]/time)/metre, (mouseMovement[1]/time)/metre]; // current mouse velocity vector
-
-  lastMouseVelocities.shift(1); // removes the first element in the array
-  lastMouseVelocities.push(mouseVelocity); // pushing new velocity to the end for next frame
 
   lastMouse = JSON.parse(JSON.stringify(mouse)); // setting lastMouse position for next frame
   lastMouseDown = mouseDown; // setting wether the mouse was down this frame for next frame
@@ -401,3 +416,4 @@ function update()
 intervalId = window.setInterval(update, 1000/fps); // setting update function to run fps times per second
 
 
+// make it so shapes show their velocity on them
