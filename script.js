@@ -32,6 +32,7 @@ canvas.addEventListener("click", (event) =>
     if (drawingVertices.length > 0)
     {
       // draws line between vertices as user is drawing them to make shape easier to visualise
+      ctx.strokeStyle = "black";
       ctx.moveTo(drawingVertices[drawingVertices.length-2][0], drawingVertices[drawingVertices.length-2][1]);
       ctx.lineTo(drawingVertices[drawingVertices.length-1][0], drawingVertices[drawingVertices.length-1][1]);
       ctx.stroke();
@@ -100,6 +101,23 @@ function vertices_translate(vertices, vector)
   return newVertices;
 }
 
+// returns true if the points are listen in a counterclockwise order
+// points are in the format: [x, y]
+function counter_clockwise(p1, p2, p3)
+{
+  return (p3[1]-p1[1])*(p2[0]-p1[0]) > (p2[1]-p1[1])*(p3[0]-p1[0]);
+}
+
+// returns true if the two lines intersect
+// lines are in the format: [[x, y], [x, y]]
+// note: doesn't work if one line just touches the end of the other
+function intersects(line1, line2)
+{
+  return counter_clockwise(line1[0], line2[0], line2[1]) != counter_clockwise(line1[1], line2[0], line2[1]) & counter_clockwise(line1[0], line1[1], line2[0]) != counter_clockwise(line1[0], line1[1], line2[1]);
+}
+
+
+
 
 
 
@@ -165,6 +183,42 @@ class Shape
 
     this.position = vertices_translate(matrix_transform(vertices_translate([this.position], matrix_multiply(center, [[-1, 0], [0, -1]])), matrix), center)[0]; // doing the same transformation on the center of the shape
   }
+
+  // calculates the center of mass of the shape
+  calc_center()
+  {
+    
+  }
+
+  // returns true if point (format: [x, y]) is inside the shape
+  inside(point)
+  {
+    var ray = [point, [0, 10000]]; // line from point straight upwards to check how many times it collides with the edges of the shape
+    
+    var collisions = 0; // number of times a ray from point intersects a line of the shape (if its odd the point is inside the shape else it is outside)
+    
+    for (let i=0; i<this.vertices.length-1; i++) // loops through each vertice and tests if each line intersects with ray
+    {
+      if (intersects(ray, [this.vertices[i], this.vertices[i+1]]))
+      {
+        collisions++;
+      }
+    }
+    if (intersects(ray, [this.vertices[this.vertices.length-1], this.vertices[0]])) // test if ray intersects the final line from last vertice back to the first
+    {
+      collisions++;
+    }
+
+    // if the collisions is even the point is outside the shape else it is inside
+    if (collisions % 2 == 0)
+    {
+      return false;
+    }
+    else
+    {
+      return true;
+    }
+  }
 }
 
 function drawShape()
@@ -199,6 +253,11 @@ function update()
     {
       shapes[i].draw();
       shapes[i].translate([0.5, 0]);
+    }
+
+    if (typeof shapes[0] !== "undefined")
+    {
+      console.log(shapes[0].inside([mouse[0], mouse[1]]));
     }
 
   }
