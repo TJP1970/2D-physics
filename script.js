@@ -1,4 +1,5 @@
 const fps = 60; // the number of frames per second
+const centerAccuracy = 10; // accuracy of center of mass calculations, the lower this value is the more accurate the calculations are but the longer they take
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -188,7 +189,6 @@ class Shape
   // calculates the center of mass of the shape by working out an estimate for the average x and y coordinates of all points inside the shape
   center()
   {
-    var interval = 10; // the spacing between points the lower it is the more accurate the calculation is but the longer it takes
     var points = 0; // the number of points that are inside
     var pointsTotal = [0, 0]; // the sum of all points that are inside (used with points to calculate an average)
 
@@ -209,9 +209,9 @@ class Shape
     }
 
     // working out the total of the x and y coordinates of points inside the shape
-    for (let x=minX; x<maxX; x+=interval)
+    for (let x=minX; x<maxX; x+=centerAccuracy)
     {
-      for (let y=minY; y<maxY; y+=interval)
+      for (let y=minY; y<maxY; y+=centerAccuracy)
       {
          if (this.inside([x, y]))
          {
@@ -264,18 +264,20 @@ function drawShape()
   if (!drawingShape)
   {
     drawingShape = true; // when this is true mouse click coords get added to an array to add vertices to drawing.
-    drawingVertices = [];
+    drawingVertices = []; // clearing drawingVerices for the next drawing
     document.getElementById("drawShape").innerText = "Finish Shape";
+    document.getElementById("playPause").innerText = "Play";
     paused = true; // pause game whilst drawing shape
   }
   else
   {
     drawingShape = false;
     document.getElementById("drawShape").innerText = "Draw Shape";
-    color = prompt("What color would you like the shape to be"); // get user input on shape color
-    shapes.push(new Shape(drawingVertices, color)); 
-    drawingVertices = [];
-    paused = false; // unpause game after the shape is drawn
+    color = prompt("What color would you like the shape to be"); // get user input on shape color 
+    var shape = new Shape(drawingVertices, color);
+    shapes.push(shape); // pushes the shape onto the array holding all shapes 
+    shape.draw(); // draw shape so it can be seen before unpause
+    drawingVertices = []; // clearing drawingVerices for the next drawing
   }
 }
 
