@@ -1,5 +1,8 @@
 const fps = 60; // the number of frames per second
 const centerAccuracy = 10; // accuracy of center of mass calculations, the lower this value is the more accurate the calculations are but the longer they take
+const metre = 100; // how many pixels equates to 1 metre in game
+const gravity = [0, 9.8]; // gravity in N/Kg as vector
+const mouseDragMultiplier = 0.3; // multiplier applied to shapes velocity after being dragged by mouse so they dont fly off too fast
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -9,6 +12,8 @@ var drawingShape = false; // wether the user is currently drawing a shape to add
 var drawingVertices = []; // the vertices of the current drawing
 
 var mouse = [0, 0]; // current coordinates of the mouse
+var mouseDown = false; // wether the mouse is down or not
+var mouseVelocity = [0, 0]; // the current velocity of the mouse as a vector
 var shapes = []; // array of Shape objects holds all the shapes
 var paused = false;
 
@@ -41,6 +46,10 @@ canvas.addEventListener("click", (event) =>
     }
   }
 });
+
+// tracks if mouse up or down
+canvas.addEventListener("mousedown", (event) => mouseDown = true);
+canvas.addEventListener("mouseup", (event) => mouseDown = false);
 
 function pause()
 {
@@ -87,6 +96,18 @@ function matrix_transform(vertices, matrix)
   return newVertices;
 }
 
+//adds 2 vectors
+function vector_add(v1, v2)
+{
+  return [v1[0]+v2[0], v1[1]+v2[1]];
+}
+
+// subtracts a vector from another (v1-v2)
+function vector_sub(v1, v2)
+{
+  return [v1[0]-v2[0], v1[1]-v2[1]];
+}
+
 // translates an array of vertices in the format [[x, y], [x, y], [x, y], ...] by a vector
 function vertices_translate(vertices, vector)
 {
@@ -94,9 +115,9 @@ function vertices_translate(vertices, vector)
 
   for (let i=0; i<vertices.length; i++)
   {
-    newPoint = []
-    newPoint[0] = vertices[i][0] + vector[0];
-    newPoint[1] = vertices[i][1] + vector[1];
+    newPoint = vector_add(vertices[i], vector);
+    //newPoint[0] = vertices[i][0] + vector[0];
+    //newPoint[1] = vertices[i][1] + vector[1];
     newVertices[i] = newPoint;
   }
 
@@ -127,16 +148,19 @@ function intersects(line1, line2)
 // this class holds functions to draw, translate, rotate, enlarge shapes etc
 class Shape
 {
+  velocity = [0, 0]; // the velocity of the shape as a vector
   // vertices is an array of each vertice coordinate relative to the center of the shape e.g. for a triangle its [[0, 0], [0, 1], [1, 0]]
   // note: the coordinates are local/relative to the shape
   // note: in this case the center of the shape is off center
   // position is the coordinates for the center of the shape as an array e.g. [1, 2]
   // size is the multiplier applied to the vertices which controls the size of the shape
-  constructor(vertices, color)
+  constructor(vertices, color, mass, moveable=true)
   {
     this.vertices = vertices; // enlarges the shape by the size variable then adjusts the position of the shape vertices based on the position
     this.position = this.center(); // calculates the position of the center based on the coordinates of all the vertices
     this.color = color;
+    this.mass = mass; // the mass in kg
+    this.moveable = moveable; // wether the object is affected by forces
   }
 
   draw()
@@ -256,7 +280,6 @@ class Shape
   }
 }
 
-
 // run when user clicks draw shape button, allows the user to draw out a shape and then click again to add it to the game
 function drawShape()
 {
@@ -274,52 +297,107 @@ function drawShape()
     drawingShape = false;
     document.getElementById("drawShape").innerText = "Draw Shape";
     color = prompt("What color would you like the shape to be"); // get user input on shape color 
-    var shape = new Shape(drawingVertices, color);
+    mass = Number(prompt("What is the mass of this shape")); // get user input on mass
+    moveable = (prompt("should this shape be moveable (true/false)") == "true"); // get user input on wether the object is moveable or not
+    var shape = new Shape(drawingVertices, color, mass, moveable);
     shapes.push(shape); // pushes the shape onto the array holding all shapes 
     shape.draw(); // draw shape so it can be seen before unpause
     drawingVertices = []; // clearing drawingVerices for the next drawing
   }
 }
 
+// calculates the resultant force from any number of force vectors
+// takes any number of arguments
+function resultant_force()
+{
+  var rf = [0, 0]; // the resultant force as a vector
+
+  // getting the sum of all forces
+  for (let i=0; i<arguments.length; i++)
+  {
+    rf = vector_add(rf, arguments[i]);
+  }
+
+  return rf;
+}
+
+// calculates the force of weight on an object as a vector using its mass and gravity
+// weight is in N
+function weight(mass)
+{
+  return [gravity[0]*mass, gravity[1]*mass];
+}
+
+// calculates the acceleration of an object in m/s^2 as a vector using its mass and a force
+// force is in format: [x, y]
+function acceleration(mass, force)
+{
+  return [force[0]/mass, force[1]/mass]; // works out acceleration with equation A = F/m
+}
+
+var lastMouse = [0, 0]; // stores the mouse position the previous frame to work out mouse velocity
+var lastMouseDown = false; // stores wether the mouse was down last frame (used to detect when mouse is let go of or pressed inside game loop)
+var lastMouseVelocities = [[0, 0], [0, 0], [0, 0]]; // stores mouse velocities for the last 3 frames so an average can be calculated for smoothing when dragging shapes
+
 // this function runs the fps variable times per second and draws each frame
+// this is the game loop
 function update() 
 {
+    
   if (!paused)
   {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var averageMouseVelocity = [0, 0];
+    // calculating the average mouse velocity vector for the last phew frames
+    for (let i=0; i<lastMouseVelocities.length; i++)
+    {
+      averageMouseVelocity = vector_add(averageMouseVelocity, lastMouseVelocities[i]);
+    }
+    averageMouseVelocity = [averageMouseVelocity[0]/lastMouseVelocities.length, averageMouseVelocity[1]/lastMouseVelocities.length];
+
+    
+
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // clear the canvas for the next frame
     
     for (let i=0; i<shapes.length; i++)
     {
-      shapes[i].draw();
-
-      if (i != 0)
+      if (shapes[i].moveable)
       {
-        shapes[i].rotate(5, shapes[0].position);
+        var shapeWeight = weight(shapes[i].mass); // calculating the shapes weight 
+        var shapeAcc = acceleration(shapes[i].mass, shapeWeight); // calculating the shapes accelleration as vector
+  
+        var shapeVelocityChange = [shapeAcc[0]/fps, shapeAcc[1]/fps]; // accelleration adjusted for fps
+        shapes[i].velocity = vector_add(shapes[i].velocity, shapeVelocityChange);
+        
+        shapes[i].translate([shapes[i].velocity[0]/fps*metre, shapes[i].velocity[1]/fps*metre]); // translating the shape by its velocity taking into account fps and metre (how many pixels equates to 1 meter) so it moves the right distance per second
       }
+      
+      if (mouseDown & shapes[i].inside(mouse))
+      {
+        shapes[i].velocity = averageMouseVelocity;
+      }
+
+      // if mouse up whilst mouse is over shape slow shape down by multiplier so it doesn't fly off at same speed as the mouse
+      if (!mouseDown & lastMouseDown & shapes[i].inside(mouse))
+      {
+        shapes[i].velocity = [shapes[i].velocity[0]*mouseDragMultiplier, shapes[i].velocity[1]*mouseDragMultiplier];
+      }
+      
+      shapes[i].draw();
     }
-
-    ////////////
-
   }
-  setTimeout(update, 1000/fps);
+
+  var mouseMovement = vector_sub(mouse, lastMouse); // calculates the displacement of the mouse since last frame
+  var time = 1/fps; // working out how many seconds have passed since the last frame
+  var mouseVelocity = [(mouseMovement[0]/time)/metre, (mouseMovement[1]/time)/metre]; // current mouse velocity vector
+
+  lastMouseVelocities.shift(1); // removes the first element in the array
+  lastMouseVelocities.push(mouseVelocity); // pushing new velocity to the end for next frame
+
+  lastMouse = JSON.parse(JSON.stringify(mouse)); // setting lastMouse position for next frame
+  lastMouseDown = mouseDown; // setting wether the mouse was down this frame for next frame
 }
 
-setTimeout(update, 1000/fps);
+intervalId = window.setInterval(update, 1000/fps); // setting update function to run fps times per second
 
-
-/*
-var rect = [[-1, -1], [-1, 1], [1, 1], [1, -1]];
-
-//rect = matrix_transform(rect, [[0.707, 0.707], [-0.707, 0.707]]);
-var myShape = new Shape(rect, 100, [500, 500], "red");
-myShape.draw();
-myShape.rotate(45, [400, 400]);
-myShape.color = "green";
-myShape.draw();
-
-ctx.strokeStyle = "black";
-ctx.moveTo(myShape.position[0], myShape.position[1]);
-ctx.lineTo(0, 0);
-ctx.stroke();
-*/
 
