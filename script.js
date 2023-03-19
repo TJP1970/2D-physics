@@ -291,14 +291,11 @@ function update()
     for (let i=0; i<shapes.length; i++)
     {
       shapes[i].draw();
-      center = shapes[i].position;
 
-      ctx.beginPath();
-      ctx.strokeStyle = "black";
-      ctx.moveTo(center[0], center[1]);
-      ctx.lineTo(0, 0);
-      ctx.stroke();
-      //shapes[i].translate([0.5, 0]);
+      if (i != 0)
+      {
+        shapes[i].rotate(5, shapes[0].position);
+      }
     }
 
     ////////////
