@@ -149,6 +149,7 @@ function intersects(line1, line2)
 class Shape
 {
   velocity = [0, 0]; // the velocity of the shape as a vector
+  momentum = [0, 0];
   followingMouse = false; // used to know if the shape should be following mouse
   
   // vertices is an array of each vertice coordinate relative to the center of the shape e.g. for a triangle its [[0, 0], [0, 1], [1, 0]]
@@ -404,8 +405,15 @@ function update()
       {
         shapes[i].translate([shapes[i].velocity[0]/fps*metre, shapes[i].velocity[1]/fps*metre]); // translating the shape by its velocity taking into account fps and metre (how many pixels equates to 1 meter) so it moves the right distance per second
       }
+
+      shapes[i].momentum = [shapes[i].velocity[0]*shapes[i].mass, shapes[i].velocity[1]*shapes[i].mass]; // calculating the shapes momentum vector using the equation p = mv
       
       shapes[i].draw(); // draw the shape onto the canvas
+
+      ////////// printing momentums ontop of shapes
+      ctx.font = "30px Arial";
+      ctx.fillStyle = "black";
+      ctx.fillText(JSON.stringify([Math.round(shapes[i].momentum[0]), Math.round(shapes[i].momentum[1])]), shapes[i].position[0], shapes[i].position[1]);
     }
   }
 
