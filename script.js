@@ -281,6 +281,73 @@ class Shape
       return true;
     }
   }
+
+  // returns true if this shape is touching another shape specified in parameters
+  // works by checking any vertices are inside the other shape
+  // and then if any of their lines intersect
+  touching(shape)
+  {
+
+    // checking if any of this shapes vertices are inside the other shape
+    for (let i=0; i<this.vertices.length; i++)
+    {
+      if (shape.inside(this.vertices[i]))
+      {
+        return true;
+      }
+    }
+
+    // checking if any of the other shapes vertices are inside this shape
+    for (let i=0; i<shape.vertices.length; i++)
+    {
+      if (this.inside(shape.vertices[i]))
+      {
+        return true;
+      }
+    }
+
+    // checking if any of this shapes edges intersect any of the other shapes vertices
+    for (let i=0; i<this.vertices.length; i++)
+    {
+      //getting line from this shape
+      var line1;
+      var line2;
+      if (i != 0)
+      {
+        // line between this and last vertice
+        line1 = [this.vertices[i], this.vertices[i-1]];
+      }
+      else
+      {
+        // line between first and last vertice
+        line1 = [this.vertices[i], this.vertices[this.vertices.length-1]]; 
+      }
+
+      for (let j=0; j<shape.vertices.length; j++)
+      {
+        //getting line from other shape
+        if (j != 0)
+        {
+          // line between this and last vertice
+          line2 = [shape.vertices[j], shape.vertices[j-1]];
+          
+        }
+        else
+        {
+          // line between first and last vertice
+          line2 = [shape.vertices[j], shape.vertices[shape.vertices.length-1]];
+        }
+
+        if (intersects(line1, line2))
+        {
+          return true;
+        }
+      }
+    }
+
+    // if none of the tests for collisions returned true this will run
+    return false;
+  }
 }
 
 // run when user clicks draw shape button, allows the user to draw out a shape and then click again to add it to the game
@@ -407,6 +474,29 @@ function update()
       }
 
       shapes[i].momentum = [shapes[i].velocity[0]*shapes[i].mass, shapes[i].velocity[1]*shapes[i].mass]; // calculating the shapes momentum vector using the equation p = mv
+  
+      //////////// changing color if colliding
+      var colliding = false;
+      for (let j=0; j<shapes.length; j++)
+      {
+        if (j != i)
+        {
+          if (shapes[i].touching(shapes[j]))
+          {
+            colliding = true;
+          }
+        }
+      }
+      if (colliding)
+      {
+        shapes[i].color = "red";
+      }
+      else
+      {
+        shapes[i].color = "green";
+      }
+
+
       
       shapes[i].draw(); // draw the shape onto the canvas
 
@@ -424,4 +514,4 @@ function update()
 intervalId = window.setInterval(update, 1000/fps); // setting update function to run fps times per second
 
 
-// make it so shapes show their velocity on them
+// need to add bounding boxes to touching function
