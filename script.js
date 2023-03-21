@@ -134,9 +134,109 @@ function counter_clockwise(p1, p2, p3)
 // returns true if the two lines intersect
 // lines are in the format: [[x, y], [x, y]]
 // note: doesn't work if one line just touches the end of the other
+// or if they have infinite intersects e.g. they overlap each other
 function intersects(line1, line2)
 {
   return counter_clockwise(line1[0], line2[0], line2[1]) != counter_clockwise(line1[1], line2[0], line2[1]) & counter_clockwise(line1[0], line1[1], line2[0]) != counter_clockwise(line1[0], line1[1], line2[1]);
+}
+
+// returns the point where 2 lines intersect, returns false if they dont intersect
+// returns the point in the format: [x, y]
+// lines are in the format: [[x, y], [x, y]]
+// note: slower than intersects() so shouldn't be used if only need to know if they intersect and not where
+function find_intersect(line1, line2)
+{
+  // checking if they even intersect at all
+  if (!intersects(line1, line2))
+  {
+    return false;
+  }
+
+  var line1Equation;
+  var line2Equation;
+  
+  if (line1[0][0] == line1[1][0]) // if line1's equation is x=c
+  {
+    line1Equation = 1;
+  }
+  else if (line1[0][1] == line1[1][1]) // if line1's equation is y=c
+  {
+    line1Equation = 2;
+  }
+  else // line1's equation is y=mx+c
+  {
+    line1Equation = 3;
+  }
+
+  if (line2[0][0] == line2[1][0]) // if line2's equation is x=c
+  {
+    line2Equation = 1;
+  }
+  else if (line2[0][1] == line2[1][1]) // if line2's equation is y=c
+  {
+    line2Equation = 2;
+  }
+  else // line2's equation is y=mx+c
+  {
+    line2Equation = 3;
+  }
+
+  if (line1Equation == 1 & line2Equation == 2) // line1 is x=c and line2 is y=c
+  {
+    return [line1[0][0], line2[0][1]];
+  }
+  if (line1Equation == 1 & line2Equation == 2) // line1 is y=c and line2 is x=c
+  {
+    return [line2[0][0], line1[0][1]];
+  }
+  if (line1Equation == 3 & line2Equation == 1) // line1 is y=mx+c and line2 is x=c
+  {
+    line1Gradient = (line1[1][1]-line1[0][1])/(line1[1][0]-line1[0][0]);
+    line1YIntercept = line1[0][1]-(line1Gradient*line1[0][0]);
+
+    y = (line2[0][0]*line1Gradient)+line1YIntercept;
+
+    return [line2[0][0], y];
+  }
+  if (line1Equation == 3 & line2Equation == 2) // line1 is y=mx+c and line2 is y=c
+  {
+    line1Gradient = (line1[1][1]-line1[0][1])/(line1[1][0]-line1[0][0]);
+    line1YIntercept = line1[0][1]-(line1Gradient*line1[0][0]);
+
+    x = (line2[0][1]-line1YIntercept)/line1Gradient;
+
+    return [x, line2[0][1]];
+  } 
+  if (line1Equation == 3 & line2Equation == 1) // line1 is x=c and line2 is y=mx+c
+  {
+    line2Gradient = (line2[1][1]-line2[0][1])/(line2[1][0]-line2[0][0]);
+    line2YIntercept = line2[0][1]-(line2Gradient*line2[0][0]);
+
+    y = (line1[0][0]*line2Gradient)+line2YIntercept;
+
+    return [line1[0][0], y];
+  }
+  if (line1Equation == 3 & line2Equation == 2) // line1 is y=c and line2 is y=mx+c
+  {
+    line2Gradient = (line2[1][1]-line2[0][1])/(line2[1][0]-line2[0][0]);
+    line2YIntercept = line2[0][1]-(line2Gradient*line2[0][0]);
+
+    x = (line1[0][1]-line2YIntercept)/line2Gradient;
+
+    return [x, line1[0][1]];
+  }
+  if (line1Equation == 3 & line2Equation == 3) // line1 is y=mx+c and line2 is y=mc+c
+  {
+    line1Gradient = (line1[1][1]-line1[0][1])/(line1[1][0]-line1[0][0]);
+    line1YIntercept = line1[0][1]-(line1Gradient*line1[0][0]);
+    line2Gradient = (line2[1][1]-line2[0][1])/(line2[1][0]-line2[0][0]);
+    line2YIntercept = line2[0][1]-(line2Gradient*line2[0][0]);
+
+    x = (line1YIntercept-line2YIntercept)/(line2Gradient-line1Gradient);
+    y = (x*line1Gradient)+line1YIntercept;
+
+    return [x, y];
+  }
 }
 
 
@@ -385,6 +485,7 @@ class Shape
     // if none of the tests for collisions returned true this will run
     return false;
   }
+
 }
 
 // run when user clicks draw shape button, allows the user to draw out a shape and then click again to add it to the game
@@ -512,26 +613,24 @@ function update()
 
       shapes[i].momentum = [shapes[i].velocity[0]*shapes[i].mass, shapes[i].velocity[1]*shapes[i].mass]; // calculating the shapes momentum vector using the equation p = mv
   
-      //////////// changing color if colliding
-      var colliding = false;
-      for (let j=0; j<shapes.length; j++)
+      //////////// drawing contact points
+      if (i != 0)
       {
-        if (j != i)
+        var line1 = [shapes[i].vertices[0], shapes[i].vertices[1]];
+        var line2 = [shapes[0].vertices[0], shapes[0].vertices[1]];
+
+        
+        var intersect = find_intersect(line1, line2);
+              
+        if (intersect != false)
         {
-          if (shapes[i].colliding(shapes[j]))
-          {
-            colliding = true;
-          }
+          ctx.fillStyle = "black";
+          ctx.beginPath();
+          ctx.arc(intersect[0], intersect[1], 50, 0, 2*Math.PI);
+          ctx.fill();
         }
       }
-      if (colliding)
-      {
-        shapes[i].color = "red";
-      }
-      else
-      {
-        shapes[i].color = "green";
-      }
+      ///////////////////////
 
 
       
