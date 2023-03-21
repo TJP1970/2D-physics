@@ -282,69 +282,106 @@ class Shape
     }
   }
 
+    // calculates and returns coordinates of the bottom left and top right of this shapes bounding box 
+  // a bounding box is a rectangular box that perfectly fits around the shape
+  // used for efficiecy when finding if objects colliding as can use bounding boxes to quickly discard shapes
+  // that are definitely not colliding before doing more complicated calculations on shapes that could be colliding
+  // returned in the format: [[x, y], [x, y]] with the value with lowest x and y first
+  bounding_box()
+  {
+    var minX = this.vertices[0][0]; // the lowest value X reaches
+    var maxX = this.vertices[0][0]; // the highest value X reaches
+    var minY = this.vertices[0][1];
+    var maxY = this.vertices[0][1];
+
+    // finding the maximum and minimum values for x and y
+    for (let i=0; i<this.vertices.length; i++)
+    {
+      var vertice = this.vertices[i];
+      
+      if (vertice[0] < minX) {minX = vertice[0];}
+      if (vertice[0] > maxX) {maxX = vertice[0];}
+      if (vertice[1] < minY) {minY = vertice[1];}
+      if (vertice[1] > maxY) {maxY = vertice[1];}
+    }
+
+    return [[minX, minY], [maxX, maxY]];
+  }
+
   // returns true if this shape is touching another shape specified in parameters
   // works by checking any vertices are inside the other shape
   // and then if any of their lines intersect
-  touching(shape)
+  colliding(other)
   {
+    var bounding1 = this.bounding_box();
+    var bounding2 = other.bounding_box();
 
-    // checking if any of this shapes vertices are inside the other shape
-    for (let i=0; i<this.vertices.length; i++)
+    // these first 2 if statements check if the shapes bounding boxes intersect to quickly return false if the shapes cant possibly be colliding, this increases efficiency when checking many shapes for collisions
+    
+    if (bounding1[1][0] >= bounding2[0][0] & bounding2[1][0] >= bounding1[0][0])
     {
-      if (shape.inside(this.vertices[i]))
+      if (bounding1[1][1] >= bounding2[0][1] & bounding2[1][1] >= bounding1[0][1])
       {
-        return true;
+        
+        // checking if any of this shapes vertices are inside the other shape
+        for (let i=0; i<this.vertices.length; i++)
+        {
+          if (other.inside(this.vertices[i]))
+          {
+            return true;
+          }
+        }
+    
+        // checking if any of the other shapes vertices are inside this shape
+        for (let i=0; i<other.vertices.length; i++)
+        {
+          if (this.inside(other.vertices[i]))
+          {
+            return true;
+          }
+        }
+    
+        // checking if any of this shapes edges intersect any of the other shapes vertices
+        for (let i=0; i<this.vertices.length; i++)
+        {
+          //getting line from this shape
+          var line1;
+          var line2;
+          if (i != 0)
+          {
+            // line between this and last vertice
+            line1 = [this.vertices[i], this.vertices[i-1]];
+          }
+          else
+          {
+            // line between first and last vertice
+            line1 = [this.vertices[i], this.vertices[this.vertices.length-1]]; 
+          }
+    
+          for (let j=0; j<other.vertices.length; j++)
+          {
+            //getting line from other shape
+            if (j != 0)
+            {
+              // line between this and last vertice
+              line2 = [other.vertices[j], other.vertices[j-1]];
+              
+            }
+            else
+            {
+              // line between first and last vertice
+              line2 = [other.vertices[j], other.vertices[other.vertices.length-1]];
+            }
+    
+            if (intersects(line1, line2))
+            {
+              return true;
+            }
+          }
+        }
       }
     }
-
-    // checking if any of the other shapes vertices are inside this shape
-    for (let i=0; i<shape.vertices.length; i++)
-    {
-      if (this.inside(shape.vertices[i]))
-      {
-        return true;
-      }
-    }
-
-    // checking if any of this shapes edges intersect any of the other shapes vertices
-    for (let i=0; i<this.vertices.length; i++)
-    {
-      //getting line from this shape
-      var line1;
-      var line2;
-      if (i != 0)
-      {
-        // line between this and last vertice
-        line1 = [this.vertices[i], this.vertices[i-1]];
-      }
-      else
-      {
-        // line between first and last vertice
-        line1 = [this.vertices[i], this.vertices[this.vertices.length-1]]; 
-      }
-
-      for (let j=0; j<shape.vertices.length; j++)
-      {
-        //getting line from other shape
-        if (j != 0)
-        {
-          // line between this and last vertice
-          line2 = [shape.vertices[j], shape.vertices[j-1]];
-          
-        }
-        else
-        {
-          // line between first and last vertice
-          line2 = [shape.vertices[j], shape.vertices[shape.vertices.length-1]];
-        }
-
-        if (intersects(line1, line2))
-        {
-          return true;
-        }
-      }
-    }
-
+    
     // if none of the tests for collisions returned true this will run
     return false;
   }
@@ -481,7 +518,7 @@ function update()
       {
         if (j != i)
         {
-          if (shapes[i].touching(shapes[j]))
+          if (shapes[i].colliding(shapes[j]))
           {
             colliding = true;
           }
