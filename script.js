@@ -185,7 +185,7 @@ function find_intersect(line1, line2)
   {
     return [line1[0][0], line2[0][1]];
   }
-  if (line1Equation == 1 & line2Equation == 2) // line1 is y=c and line2 is x=c
+  if (line1Equation == 2 & line2Equation == 1) // line1 is y=c and line2 is x=c
   {
     return [line2[0][0], line1[0][1]];
   }
@@ -207,7 +207,7 @@ function find_intersect(line1, line2)
 
     return [x, line2[0][1]];
   } 
-  if (line1Equation == 3 & line2Equation == 1) // line1 is x=c and line2 is y=mx+c
+  if (line2Equation == 3 & line1Equation == 1) // line1 is x=c and line2 is y=mx+c
   {
     line2Gradient = (line2[1][1]-line2[0][1])/(line2[1][0]-line2[0][0]);
     line2YIntercept = line2[0][1]-(line2Gradient*line2[0][0]);
@@ -216,8 +216,9 @@ function find_intersect(line1, line2)
 
     return [line1[0][0], y];
   }
-  if (line1Equation == 3 & line2Equation == 2) // line1 is y=c and line2 is y=mx+c
+  if (line2Equation == 3 & line1Equation == 2) // line1 is y=c and line2 is y=mx+c
   {
+    
     line2Gradient = (line2[1][1]-line2[0][1])/(line2[1][0]-line2[0][0]);
     line2YIntercept = line2[0][1]-(line2Gradient*line2[0][0]);
 
@@ -486,6 +487,62 @@ class Shape
     return false;
   }
 
+  // returns an array of contact points (points where this shapes lines touch the other shapes lines) and an array of angles between the momentum of this object and the line each contact point is on
+  // returned in the format [[[x, y], [x, y], ...], [angle, angle, ...]]
+  // returns false if there are no contact points
+  contact_points(other)
+  {
+    var contactPoints = [];
+
+    
+    var line1; // line from this shape
+    var line2; // line from other shape
+
+    for (let i=0; i<this.vertices.length; i++) // iterating through every line in this shape
+    {
+
+      // getting line from this shape
+      if (i == 0)
+      {
+        line1 = [this.vertices[0], this.vertices[this.vertices.length-1]];    
+      }
+      else
+      {
+        line1 = [this.vertices[i], this.vertices[i-1]];
+      }
+
+      for (let j=0; j<other.vertices.length; j++) // iterating through every line in the other shape
+      {
+  
+        // getting line from the other shape
+        if (j == 0)
+        {
+          line2 = [other.vertices[0], other.vertices[other.vertices.length-1]];    
+        }
+        else
+        {
+          line2 = [other.vertices[j], other.vertices[j-1]];
+        }
+        
+        // finding the contact point
+        var contactPoint = find_intersect(line1, line2);
+        if (contactPoint != false)
+        {
+          contactPoints.push(JSON.parse(JSON.stringify(contactPoint)));
+        }
+        ///////////////// need to add angles
+      }
+    }
+
+    if (contactPoints.length == 0)
+    {
+      return false;
+    }
+    else
+    {
+      return contactPoints;
+    }
+  }
 }
 
 // run when user clicks draw shape button, allows the user to draw out a shape and then click again to add it to the game
@@ -550,6 +607,10 @@ var lastMouseDown = false; // stores wether the mouse was down last frame (used 
 // this is the game loop
 function update() 
 {
+  ////////////// contact point test
+  contactPoints = [];
+  ///////////////////
+  
     
   if (!paused)
   {
@@ -614,6 +675,7 @@ function update()
       shapes[i].momentum = [shapes[i].velocity[0]*shapes[i].mass, shapes[i].velocity[1]*shapes[i].mass]; // calculating the shapes momentum vector using the equation p = mv
   
       //////////// drawing contact points
+      /*
       if (i != 0)
       {
         var line1 = [shapes[i].vertices[0], shapes[i].vertices[1]];
@@ -630,16 +692,39 @@ function update()
           ctx.fill();
         }
       }
+      */
+      for (let j=0; j<shapes.length; j++)
+      {
+        if (j != i)
+        {
+          let contactPoints2 = shapes[i].contact_points(shapes[j]);
+          if (contactPoints2 != false)
+          {
+            contactPoints = contactPoints.concat(JSON.parse(JSON.stringify(contactPoints2)));
+          }
+        }
+      }
       ///////////////////////
 
 
       
       shapes[i].draw(); // draw the shape onto the canvas
 
-      ////////// printing momentums ontop of shapes
+      ////////// printing momentums ontop of shapes and drawing contact points
+
+      for (let j=0; j<contactPoints.length; j++)
+      {
+        ctx.fillStyle = "black";
+        ctx.beginPath();
+        ctx.arc(contactPoints[j][0], contactPoints[j][1], 10, 0, 2*Math.PI);
+        ctx.fill();
+      }
+      
       ctx.font = "30px Arial";
       ctx.fillStyle = "black";
       ctx.fillText(JSON.stringify([Math.round(shapes[i].momentum[0]), Math.round(shapes[i].momentum[1])]), shapes[i].position[0], shapes[i].position[1]);
+
+      //////////////////////////////////////
     }
   }
 
